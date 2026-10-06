@@ -4,13 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Shop {
-    private List<Product> products;
+    private List<IProduct> products;
 
     public Shop() {
         this.products = new ArrayList<>();
     }
 
-    public List<Product> getProducts() {
+    public List<IProduct> getProducts() {
         return products;
     } 
 }
