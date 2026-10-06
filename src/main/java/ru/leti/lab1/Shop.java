@@ -12,5 +12,14 @@ public class Shop {
 
     public List<IProduct> getProducts() {
         return products;
-    } 
+    }
+
+    public void addProduct(IProduct product) {
+        products.add(product);
+    }
+
+    public IProduct addProduct2basket(int productId) {
+        products.get(productId).decreaseQuantity(1);
+        return products.get(productId);
+    }
 }
