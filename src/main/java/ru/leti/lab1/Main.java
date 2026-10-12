@@ -1,7 +1,9 @@
 package ru.leti.lab1;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Scanner;
 
 public class Main {
@@ -17,8 +19,11 @@ public class Main {
     }
 
     private static void runApplication(Scanner scanner, List<User> users, Shop shop, Delivery delivery) {
-        while (scanner.hasNextLine()) {
+        while (true) {
             printLoginMenu();
+            if (!scanner.hasNextLine()) {
+                return;
+            }
             String choice = scanner.nextLine().trim();
             switch (choice) {
                 case "1" -> loginAdmin(scanner, users, shop, delivery);
@@ -167,28 +172,86 @@ public class Main {
 
     private static void createOrder(Scanner scanner, User user, Shop shop, Delivery delivery) {
         List<IProduct> products = shop.getProducts();
-        printProducts(shop);
-        System.out.print("Введите номер товара: ");
-        if (!scanner.hasNextLine()) {
-            return;
-        }
-        int productNumber = parseNumber(scanner.nextLine());
-        if (productNumber < 1 || productNumber > products.size()) {
-            System.out.println("Товар с таким номером не найден.");
-            return;
+        Map<Integer, Integer> cart = new LinkedHashMap<>();
+        while (true) {
+            printProductsAndCart(shop, cart);
+            System.out.print("Введите номер товара и количество (например, 1 3; количество по умолчанию 1; 0 - оформить): ");
+            if (!scanner.hasNextLine()) {
+                return;
+            }
+            String[] selection = scanner.nextLine().trim().split("\\s+");
+            int productNumber = parseNumber(selection[0]);
+            if (productNumber == 0 && selection.length == 1) {
+                break;
+            }
+            if (productNumber < 1 || productNumber > products.size()) {
+                System.out.println("Товар с таким номером не найден.");
+                continue;
+            }
+            if (selection.length > 2) {
+                System.out.println("Введите номер товара и необязательное количество.");
+                continue;
+            }
+            int quantity = selection.length == 2 ? parseNumber(selection[1]) : 1;
+            if (quantity < 1) {
+                System.out.println("Количество должно быть положительным целым числом.");
+                continue;
+            }
+
+            Product product = (Product) products.get(productNumber - 1);
+            int productIndex = productNumber - 1;
+            int alreadySelected = cart.getOrDefault(productIndex, 0);
+            if (quantity > product.getQuantity() - alreadySelected) {
+                System.out.println("Недостаточно товара. Доступно для добавления: "
+                        + (product.getQuantity() - alreadySelected) + ".");
+                continue;
+            }
+            cart.merge(productIndex, quantity, Integer::sum);
         }
 
-        IProduct selectedProduct = products.get(productNumber - 1);
-        Product product = (Product) selectedProduct;
-        if (product.getQuantity() <= 0) {
-            System.out.println("Этого товара нет в наличии.");
+        if (cart.isEmpty()) {
+            System.out.println("Заказ не оформлен: товары не выбраны.");
             return;
         }
-
-        shop.addProduct2basket(productNumber - 1);
+        List<String> orderProducts = new ArrayList<>();
+        long totalPrice = 0;
+        for (Map.Entry<Integer, Integer> item : cart.entrySet()) {
+            Product product = (Product) products.get(item.getKey());
+            for (int i = 0; i < item.getValue(); i++) {
+                shop.addProduct2basket(item.getKey());
+            }
+            orderProducts.add(product.getName() + " x " + item.getValue());
+            totalPrice += (long) product.getPrice() * item.getValue();
+        }
         int orderId = delivery.getOrders().size() + 1;
-        delivery.addOrder(new Order(orderId, user.name, product.getName(), "Новый"));
-        System.out.println("Заказ " + orderId + " оформлен.");
+        Order order = new Order(orderId, user.name, String.join(", ", orderProducts), "Новый", totalPrice);
+        delivery.addOrder(order);
+        System.out.println("Заказ " + orderId + " оформлен. Сумма: " + totalPrice + " руб.");
+        System.out.println("Заказ ожидает курьера.");
+    }
+
+    private static void printProductsAndCart(Shop shop, Map<Integer, Integer> cart) {
+        List<IProduct> products = shop.getProducts();
+        List<Map.Entry<Integer, Integer>> cartItems = new ArrayList<>(cart.entrySet());
+        System.out.printf("%-48s | %s%n", "Товары", "Текущая корзина");
+        System.out.println("-".repeat(48) + "+" + "-".repeat(32));
+        int rowCount = Math.max(products.size(), cartItems.size());
+        for (int row = 0; row < rowCount; row++) {
+            String productText = "";
+            String cartText = "";
+            if (row < products.size()) {
+                Product product = (Product) products.get(row);
+                int remaining = product.getQuantity() - cart.getOrDefault(row, 0);
+                productText = (row + 1) + ". " + product.getName() + " | " + product.getPrice()
+                    + " руб./шт. | доступно: " + remaining;
+            }
+            if (row < cartItems.size()) {
+                Map.Entry<Integer, Integer> item = cartItems.get(row);
+                Product product = (Product) products.get(item.getKey());
+                cartText = product.getName() + " x " + item.getValue();
+            }
+            System.out.printf("%-48s | %s%n", productText, cartText);
+        }
     }
 
     private static void printUserOrders(User user, Delivery delivery) {
@@ -211,28 +274,113 @@ public class Main {
         while (running) {
             System.out.println("\n=== Кабинет курьера: " + courier.name + " ===");
             System.out.println("1. Посмотреть заказы");
-            System.out.println("2. Обновить статус заказа");
+            System.out.println("2. Взять новый заказ в работу");
+            System.out.println("3. Изменить статус");
             System.out.println("0. Выйти из аккаунта");
             System.out.print("Выберите действие: ");
             if (!scanner.hasNextLine()) {
                 return;
             }
             switch (scanner.nextLine().trim()) {
-                case "1" -> printOrders(delivery);
-                case "2" -> updateCourierOrderStatus(scanner, delivery);
+                case "1" -> printCourierOrders(courier, delivery);
+                case "2" -> takeNewOrder(scanner, courier, delivery);
+                case "3" -> updateCourierStatusMenu(scanner, courier, delivery);
                 case "0" -> running = false;
                 default -> System.out.println("Неизвестный пункт меню.");
             }
         }
     }
 
-    private static void updateCourierOrderStatus(Scanner scanner, Delivery delivery) {
-        List<IOrder> orders = delivery.getOrders();
-        if (orders.isEmpty()) {
-            System.out.println("Заказов пока нет.");
+    private static void updateCourierStatusMenu(Scanner scanner, Courier courier, Delivery delivery) {
+        System.out.println("\n1. Изменить статус заказа");
+        System.out.println("2. Изменить статус курьера");
+        System.out.println("0. Назад");
+        System.out.print("Выберите действие: ");
+        if (!scanner.hasNextLine()) {
             return;
         }
-        printOrders(delivery);
+        switch (scanner.nextLine().trim()) {
+            case "1" -> updateCourierOrderStatus(scanner, courier, delivery);
+            case "2" -> updateCourierStatus(scanner, courier, delivery);
+            case "0" -> {
+            }
+            default -> System.out.println("Неизвестный пункт меню.");
+        }
+    }
+
+    private static void takeNewOrder(Scanner scanner, Courier courier, Delivery delivery) {
+        if (!courier.isFree()) {
+            System.out.println("Сначала завершите текущую доставку.");
+            return;
+        }
+        List<IOrder> orders = delivery.getAvailableNewOrders();
+        if (orders.isEmpty()) {
+            System.out.println("Новых заказов для назначения нет.");
+            return;
+        }
+        System.out.println("\nНовые заказы:");
+        for (int i = 0; i < orders.size(); i++) {
+            System.out.println((i + 1) + ". " + orders.get(i));
+        }
+        System.out.print("Введите номер заказа: ");
+        if (!scanner.hasNextLine()) {
+            return;
+        }
+        int orderNumber = parseNumber(scanner.nextLine());
+        if (orderNumber < 1 || orderNumber > orders.size()) {
+            System.out.println("Заказ с таким номером не найден.");
+            return;
+        }
+        if (delivery.claimOrder(orders.get(orderNumber - 1), courier)) {
+            System.out.println("Заказ принят в работу.");
+        } else {
+            System.out.println("Не удалось принять заказ. Возможно, его уже взял другой курьер.");
+        }
+    }
+
+    private static void updateCourierStatus(Scanner scanner, Courier courier, Delivery delivery) {
+        System.out.println("Текущий статус курьера: " + (courier.isFree() ? "свободен" : "занят"));
+        System.out.print("Введите новый статус (1 - свободен, 2 - занят): ");
+        if (!scanner.hasNextLine()) {
+            return;
+        }
+        String statusInput = scanner.nextLine().trim();
+        boolean newStatus;
+        switch (statusInput) {
+            case "1" -> newStatus = true;
+            case "2" -> newStatus = false;
+            default -> {
+                System.out.println("Неизвестный статус.");
+                return;
+            }
+        }
+        if (newStatus && delivery.hasActiveOrdersForCourier(courier)) {
+            System.out.println("Нельзя стать свободным, пока есть незавершённая доставка.");
+            return;
+        }
+        courier.setFree(newStatus);
+        System.out.println("Статус курьера обновлён.");
+    }
+
+    private static void printCourierOrders(Courier courier, Delivery delivery) {
+        List<IOrder> orders = delivery.getOrdersForCourier(courier);
+        System.out.println("\nВаши заказы:");
+        if (orders.isEmpty()) {
+            System.out.println("Заказов, назначенных вам, пока нет.");
+            return;
+        }
+        for (int i = 0; i < orders.size(); i++) {
+            System.out.println((i + 1) + ". " + orders.get(i));
+        }
+    }
+
+    private static void updateCourierOrderStatus(Scanner scanner, Courier courier, Delivery delivery) {
+        List<IOrder> orders = delivery.getOrdersForCourier(courier);
+        if (orders.isEmpty()) {
+            System.out.println("У вас нет назначенных заказов.");
+            return;
+        }
+        printCourierOrders(courier, delivery);
         System.out.print("Введите номер заказа: ");
         if (!scanner.hasNextLine()) {
             return;
@@ -362,12 +510,16 @@ public class Main {
     }
 
     private static void seedTemporaryData(Shop shop, Delivery delivery) {
-        shop.addProduct(new Product("Яблоки", 12));
-        shop.addProduct(new Product("Хлеб", 7));
-        delivery.addCourier(new Courier("Михаил", true, "mike", "mike123"));
-        delivery.addCourier(new Courier("Елена", false, "elena", "elena123"));
-        delivery.addOrder(new Order(1, "Анна Смирнова", "Яблоки", "Новый"));
-        delivery.addOrder(new Order(2, "Иван Петров", "Хлеб", "В доставке"));
+        shop.addProduct(new Product("Яблоки", 12, 120));
+        shop.addProduct(new Product("Хлеб", 7, 50));
+        Courier mike = new Courier("Михаил", true, "mike", "mike123");
+        Courier elena = new Courier("Елена", false, "elena", "elena123");
+        delivery.addCourier(mike);
+        delivery.addCourier(elena);
+        delivery.addOrder(new Order(1, "Анна Смирнова", "Яблоки x 1", "Новый", 120));
+        Order inDelivery = new Order(2, "Иван Петров", "Хлеб x 1", "В доставке", 50);
+        inDelivery.assignCourier(elena);
+        delivery.addOrder(inDelivery);
     }
 
 }

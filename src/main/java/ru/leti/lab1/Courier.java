@@ -17,9 +17,17 @@ public class Courier implements ICourier {
         return this.login.equals(login) && this.password.equals(password);
     }
 
+    public String getName() {
+        return name;
+    }
+
     @Override
     public boolean isFree() {
         return free;
+    }
+
+    public void setFree(boolean free) {
+        this.free = free;
     }
 
     public void changeStatus(boolean free) {
