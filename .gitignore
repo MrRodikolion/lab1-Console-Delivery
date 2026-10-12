@@ -1,0 +1,10 @@
+target/
+.idea/
+.vscode/
+.github/
+.classpath
+.project
+.settings/
+*.docx
+*.iml
+.gitignore
