@@ -26,6 +26,18 @@ public class Delivery {
         return orders;
     }
 
+    public List<ICourier> getCouriers() {
+        return couriers;
+    }
+
+    public void addCourier(ICourier courier) {
+        couriers.add(courier);
+    }
+
+    public void addOrder(IOrder order) {
+        orders.add(order);
+    }
+
     public void updateOrderStatus(IOrder order, String status) {
         order.setStatus(status);
     }
