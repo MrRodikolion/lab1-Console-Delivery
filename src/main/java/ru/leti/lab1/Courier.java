@@ -6,14 +6,13 @@ public class Courier implements ICourier {
     private String password;
     String name;
 
-    public Courier(String name, boolean isFree, String login, String password) {
+    private Courier(String name, String login, String password) {
         this.name = name;
-        this.status = isFree ? "svo" : "занят";
         this.login = login;
         this.password = password;
     }
 
-    public boolean matches(String login, String password) {
+    private boolean matches(String login, String password) {
         return this.login.equals(login) && this.password.equals(password);
     }
 
