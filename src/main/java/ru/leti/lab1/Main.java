@@ -1,7 +1,7 @@
 package ru.leti.lab1;
 
-public class Main {
-    public static void main(String[] args) {
+void main()
+{
         Shop shop = new Shop();
 
         Product product = new Product("Apple", 5);
@@ -54,9 +54,3 @@ public class Main {
             return status;
         }
     }
-}
-public class Order {
-    int number;
-    var type;
-    var customer;
-}
