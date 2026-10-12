@@ -482,3 +482,4 @@ public class Main {
             return "Заказ " + id + " | клиент: " + customerName + " | товар: " + productName + " | статус: " + status;
         }
     }
+}
