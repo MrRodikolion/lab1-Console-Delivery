@@ -1,10 +1,10 @@
 package ru.leti.lab1;
 
-public class Courier implements ICourier {
+public class Courier {
     private boolean free;
     private final String login;
     private final String password;
-    String name;
+    private final String name;
 
     public Courier(String name, boolean isFree, String login, String password) {
         this.name = name;
@@ -21,7 +21,6 @@ public class Courier implements ICourier {
         return name;
     }
 
-    @Override
     public boolean isFree() {
         return free;
     }

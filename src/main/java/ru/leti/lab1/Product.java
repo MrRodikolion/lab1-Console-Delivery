@@ -1,6 +1,6 @@
 package ru.leti.lab1;
 
-public class Product implements IProduct {
+public class Product {
     private final int price;
     private int amount;
     private String naming;
@@ -27,11 +27,11 @@ public class Product implements IProduct {
         return price;
     }
 
-    @Override
     public void decreaseQuantity(int quantity) {
-        if (quantity > 0) {
-            amount = Math.max(0, amount - quantity);
+        if (quantity < 1 || quantity > amount) {
+            throw new IllegalArgumentException("Количество товара на складе недостаточно.");
         }
+        amount -= quantity;
     }
 
     @Override

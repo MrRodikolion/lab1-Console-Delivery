@@ -4,22 +4,25 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Shop {
-    private List<IProduct> products;
+    private final List<Product> products;
 
     public Shop() {
         this.products = new ArrayList<>();
     }
 
-    public List<IProduct> getProducts() {
-        return products;
+    public List<Product> getProducts() {
+        return List.copyOf(products);
     }
 
-    public void addProduct(IProduct product) {
+    public void addProduct(Product product) {
         products.add(product);
     }
 
-    public IProduct addProduct2basket(int productId) {
-        products.get(productId).decreaseQuantity(1);
-        return products.get(productId);
+    public boolean removeFromStock(Product product, int quantity) {
+        if (!products.contains(product) || quantity < 1 || product.getQuantity() < quantity) {
+            return false;
+        }
+        product.decreaseQuantity(quantity);
+        return true;
     }
 }

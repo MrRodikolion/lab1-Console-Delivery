@@ -1,91 +1,70 @@
 package ru.leti.lab1;
 
-import java.util.List;
 import java.util.ArrayList;
+import java.util.List;
 
 public class Delivery {
-    private List<ICourier> couriers;
-    private List<IOrder> orders;
+    private final List<Courier> couriers = new ArrayList<>();
+    private final List<Order> orders = new ArrayList<>();
 
-    public Delivery() {
-        this.couriers = new ArrayList<>();
-        this.orders = new ArrayList<>();
+    public List<Courier> getFreeCouriers() {
+        return couriers.stream().filter(Courier::isFree).toList();
     }
 
-    public List<ICourier> getFreeCouriers() {
-        List<ICourier> freeCouriers = new ArrayList<>();
-        for (ICourier courier : couriers) {
-            if (courier.isFree()) {
-                freeCouriers.add(courier);
-            }
-        }
-        return freeCouriers;
+    public List<Order> getOrders() {
+        return List.copyOf(orders);
     }
 
-    public List<IOrder> getOrders() {
-        return orders;
+    public List<Courier> getCouriers() {
+        return List.copyOf(couriers);
     }
 
-    public List<ICourier> getCouriers() {
-        return couriers;
-    }
-
-    public void addCourier(ICourier courier) {
+    public void addCourier(Courier courier) {
         couriers.add(courier);
     }
 
-    public void addOrder(IOrder order) {
+    public void addOrder(Order order) {
         orders.add(order);
     }
 
-    public List<IOrder> getAvailableNewOrders() {
-        List<IOrder> availableOrders = new ArrayList<>();
-        for (IOrder order : orders) {
-            if (order instanceof Order deliveryOrder
-                    && "Новый".equals(deliveryOrder.getStatus())
-                    && deliveryOrder.getCourier() == null) {
-                availableOrders.add(order);
-            }
-        }
-        return availableOrders;
+    public List<Order> getAvailableNewOrders() {
+        return orders.stream()
+                .filter(order -> order.getStatus() == OrderStatus.NEW)
+                .filter(order -> order.getDeliveryMethod().requiresCourier())
+                .filter(order -> order.getCourier() == null)
+                .toList();
     }
 
-    public boolean claimOrder(IOrder order, Courier courier) {
-        if (!courier.isFree() || !(order instanceof Order deliveryOrder)
-                || !"Новый".equals(deliveryOrder.getStatus())
-                || deliveryOrder.getCourier() != null) {
+    public boolean claimOrder(Order order, Courier courier) {
+        if (!orders.contains(order) || courier == null || !couriers.contains(courier)
+                || !courier.isFree() || order.getStatus() != OrderStatus.NEW
+                || !order.getDeliveryMethod().requiresCourier() || order.getCourier() != null
+                || !order.assignCourier(courier)) {
             return false;
         }
-        deliveryOrder.assignCourier(courier);
-        deliveryOrder.setStatus("Принят курьером");
         courier.setFree(false);
         return true;
     }
 
-    public List<IOrder> getOrdersForCourier(Courier courier) {
-        List<IOrder> courierOrders = new ArrayList<>();
-        for (IOrder order : orders) {
-            if (order instanceof Order deliveryOrder && deliveryOrder.getCourier() == courier) {
-                courierOrders.add(order);
-            }
-        }
-        return courierOrders;
+    public List<Order> getOrdersForCourier(Courier courier) {
+        return orders.stream().filter(order -> order.getCourier() == courier).toList();
     }
 
     public boolean hasActiveOrdersForCourier(Courier courier) {
-        for (IOrder order : getOrdersForCourier(courier)) {
-            if (order instanceof Order deliveryOrder && !"Доставлен".equals(deliveryOrder.getStatus())) {
-                return true;
-            }
-        }
-        return false;
+        return getOrdersForCourier(courier).stream()
+                .anyMatch(order -> order.getStatus() != OrderStatus.DELIVERED
+                        && order.getStatus() != OrderStatus.CANCELLED);
     }
 
-    public void updateOrderStatus(IOrder order, String status) {
-        order.setStatus(status);
-        if ("Доставлен".equals(status) && order instanceof Order deliveryOrder
-                && deliveryOrder.getCourier() != null) {
-            deliveryOrder.getCourier().setFree(true);
+    public boolean updateOrderStatus(Order order, OrderStatus status) {
+        if (!orders.contains(order) || !order.transitionTo(status)) {
+            return false;
         }
+        if (status == OrderStatus.DELIVERED && order.getCourier() != null) {
+            order.getCourier().setFree(true);
+        } else if (status == OrderStatus.CANCELLED && order.getCourier() != null) {
+            order.getCourier().setFree(true);
+        }
+        return true;
     }
 }
